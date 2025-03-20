@@ -1,0 +1,88 @@
+#include <Wire.h>
+#include <RTClib.h>
+#include <TM1637Display.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// Inisialisasi modul RTC DS3231
+RTC_DS3231 rtc;
+
+// Inisialisasi 7-Segment Display (TM1637)
+#define CLK 2
+#define DIO 3
+TM1637Display display(CLK, DIO);
+
+// Inisialisasi OLED Display
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 displayOled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// Buzzer
+#define BUZZER 4
+
+// Waktu alarm (ubah sesuai keinginan)
+int alarmHour = 7;
+int alarmMinute = 0;
+bool alarmOn = true;
+
+void setup() {
+    Serial.begin(9600);
+
+    // Inisialisasi RTC
+    if (!rtc.begin()) {
+        Serial.println("RTC tidak terdeteksi!");
+        while (1);
+    }
+
+    // Inisialisasi 7-Segment Display
+    display.setBrightness(7);
+    
+    // Inisialisasi OLED Display
+    if (!displayOled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+        Serial.println("OLED tidak terdeteksi!");
+        while (1);
+    }
+
+    // Set buzzer sebagai output
+    pinMode(BUZZER, OUTPUT);
+    digitalWrite(BUZZER, LOW);
+
+    displayOled.clearDisplay();
+}
+
+void loop() {
+    DateTime now = rtc.now();
+
+    // Tampilkan waktu di 7-Segment Display (format HH:MM)
+    int timeData = (now.hour() * 100) + now.minute();
+    display.showNumberDecEx(timeData, 0b01000000, true);  // Titik tengah aktif
+
+    // Tampilkan tanggal di OLED Display
+    displayOled.clearDisplay();
+    displayOled.setTextSize(1);
+    displayOled.setTextColor(SSD1306_WHITE);
+    displayOled.setCursor(0, 0);
+    displayOled.print("Tanggal: ");
+    displayOled.print(now.day());
+    displayOled.print("/");
+    displayOled.print(now.month());
+    displayOled.print("/");
+    displayOled.print(now.year());
+
+    displayOled.setCursor(0, 20);
+    displayOled.print("Waktu: ");
+    displayOled.print(now.hour());
+    displayOled.print(":");
+    displayOled.print(now.minute());
+
+    displayOled.display();
+
+    // Cek apakah waktu alarm tercapai
+    if (alarmOn && now.hour() == alarmHour && now.minute() == alarmMinute) {
+        digitalWrite(BUZZER, HIGH);
+        delay(5000); // Buzzer berbunyi 5 detik
+        digitalWrite(BUZZER, LOW);
+    }
+
+    delay(1000);  // Update setiap 1 detik
+}
